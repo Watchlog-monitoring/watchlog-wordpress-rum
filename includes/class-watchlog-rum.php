@@ -249,23 +249,28 @@ class Watchlog_RUM_Plugin {
 		$type    = isset( $field['type'] ) ? $field['type'] : 'text';
 		$desc    = isset( $field['description'] ) ? $field['description'] : '';
 		$required= isset( $field['required'] ) ? (bool) $field['required'] : false;
-		$step    = isset( $field['step'] ) ? esc_attr( $field['step'] ) : '';
-		$min     = isset( $field['min'] ) ? esc_attr( $field['min'] ) : '';
-		$max     = isset( $field['max'] ) ? esc_attr( $field['max'] ) : '';
+		$step    = isset( $field['step'] ) ? $field['step'] : '';
+		$min     = isset( $field['min'] ) ? $field['min'] : '';
+		$max     = isset( $field['max'] ) ? $field['max'] : '';
 
 		switch ( $type ) {
 			case 'number':
-				$step_attr = $step ? sprintf( ' step="%s"', $step ) : ' step="0.1"';
-				$min_attr  = $min ? sprintf( ' min="%s"', $min ) : '';
-				$max_attr  = $max ? sprintf( ' max="%s"', $max ) : '';
+				$step_value = '' !== $step ? $step : '0.1';
 				printf(
-					'<input type="number" name="%1$s[%2$s]" id="%2$s" value="%3$s"%4$s%5$s%6$s class="regular-text" %7$s />',
+					'<input type="number" name="%1$s[%2$s]" id="%2$s" value="%3$s"',
 					esc_attr( self::OPTION_NAME ),
 					esc_attr( $key ),
-					esc_attr( $value ),
-					$step_attr,
-					$min_attr,
-					$max_attr,
+					esc_attr( $value )
+				);
+				printf( ' step="%s"', esc_attr( $step_value ) );
+				if ( '' !== $min ) {
+					printf( ' min="%s"', esc_attr( $min ) );
+				}
+				if ( '' !== $max ) {
+					printf( ' max="%s"', esc_attr( $max ) );
+				}
+				printf(
+					' class="regular-text" %s />',
 					$required ? 'required' : ''
 				);
 				break;

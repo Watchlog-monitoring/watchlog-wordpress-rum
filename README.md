@@ -1,4 +1,7 @@
-# Watchlog WordPress RUM Plugin
+# Watchlog RUM
+Tested up to: 6.9
+License: GPLv2 or later
+Stable tag: 0.2.0
 
 WordPress implementation of the Watchlog Real User Monitoring (RUM) SDK. 
 
@@ -14,7 +17,7 @@ WordPress implementation of the Watchlog Real User Monitoring (RUM) SDK.
 
 ## Installation
 
-1. Copy the `watchlog-wordpress-rum` folder into `wp-content/plugins/`.
+1. Copy the `watchlog-rum` folder into `wp-content/plugins/`.
 2. Activate the “Watchlog RUM” plugin from WP Admin → Plugins.
 3. Visit **Settings → Watchlog RUM** and provide:
    - `apiKey`
