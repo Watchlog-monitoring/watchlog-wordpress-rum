@@ -14,6 +14,11 @@
   let _seq = 0
   let _breadcrumbs = []
   let _maxBreadcrumbs = 100
+  let _sessionInfo = null
+  let _sessionResumed = false
+  let _sessionTimeoutMs = 0
+  let _sessionPersistenceEnabled = false
+  let _sessionStorageKey = null
 
   // feature flags / config
   let _config = {
@@ -37,7 +42,8 @@
     maxBreadcrumbs: 100,
     routeHints: [],
     normalizedPath: null,
-    beforeSend: (ev) => ev
+    beforeSend: (ev) => ev,
+    sessionTimeoutMinutes: 30
   }
   let _sessionDropped = false
   let _listenersInstalled = false
@@ -99,6 +105,80 @@
   }
 
   const curPath = () => (safeWin()?.location?.pathname || '/')
+
+  // ===== Session helpers =====
+  const createSessionId = () => 'sess-' + Math.random().toString(36).substring(2, 10) + '-' + Date.now().toString(36)
+
+  const getSessionStorageKey = (appName) => {
+    const base = (appName || 'default').toString().toLowerCase()
+    const slug = base.replace(/[^a-z0-9_-]/g, '')
+    return `watchlog_rum_session_${slug || 'default'}`
+  }
+
+  function readPersistedSession (key) {
+    if (!key) return null
+    const w = safeWin()
+    try {
+      if (!w || !w.localStorage) return null
+      const raw = w.localStorage.getItem(key)
+      if (!raw) return null
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }
+
+  function persistSessionState () {
+    if (!_sessionPersistenceEnabled || !_sessionStorageKey || !_sessionInfo) return
+    const w = safeWin()
+    if (!w || !w.localStorage) return
+    try {
+      w.localStorage.setItem(_sessionStorageKey, JSON.stringify(_sessionInfo))
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function touchSessionActivity () {
+    if (!_sessionPersistenceEnabled || !_sessionInfo) return
+    _sessionInfo.lastSeen = Date.now()
+    persistSessionState()
+  }
+
+  function hydrateSessionInfo (appName) {
+    const now = Date.now()
+    _sessionInfo = null
+    _sessionResumed = false
+    _sessionStorageKey = _sessionPersistenceEnabled ? getSessionStorageKey(appName) : null
+
+    if (_sessionPersistenceEnabled && _sessionStorageKey) {
+      const stored = readPersistedSession(_sessionStorageKey)
+      if (stored && stored.id) {
+        const lastSeen = stored.lastSeen || stored.startedAt || now
+        if (_sessionTimeoutMs === 0 || now - lastSeen < _sessionTimeoutMs) {
+          _sessionInfo = {
+            id: stored.id,
+            startedAt: stored.startedAt || now,
+            lastSeen: now
+          }
+          _sessionResumed = true
+        }
+      }
+    }
+
+    if (!_sessionInfo) {
+      _sessionInfo = {
+        id: createSessionId(),
+        startedAt: now,
+        lastSeen: now
+      }
+      _sessionResumed = false
+    }
+
+    sessionStartTime = _sessionInfo.startedAt
+    persistSessionState()
+    return _sessionInfo
+  }
 
   // ===== Enhanced Context Collection =====
   function collectDeviceInfo () {
@@ -362,6 +442,7 @@
 
     const env = makeEnvelope(type, path, normalizedPath, data)
     pushBuffered(env)
+    touchSessionActivity()
   }
 
   // ===== Enhanced Performance Capture =====
@@ -446,18 +527,23 @@
   function handleBeforeUnload () {
     const w = safeWin()
     if (!w) return
-    const duration = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : null
-    bufferEvent({
-      type: 'session_end',
-      path: w.location?.pathname || '/',
-      normalizedPath: meta.normalizedPath,
-      duration
-    })
+    if (!_sessionPersistenceEnabled) {
+      const duration = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : null
+      bufferEvent({
+        type: 'session_end',
+        path: w.location?.pathname || '/',
+        normalizedPath: meta.normalizedPath,
+        duration
+      })
+    } else {
+      touchSessionActivity()
+    }
     flush(true)
     clearInterval(flushTimer)
   }
 
   function handlePageHide () {
+    touchSessionActivity()
     flush(true)
   }
 
@@ -891,7 +977,7 @@
       apiKey: meta.apiKey,
       app: meta.app,
       sdk: 'watchlog-rum-wordpress',
-      version: '0.1.0',
+      version: '0.2.0',
       sentAt: Date.now(),
       sessionId: meta.sessionId,
       deviceId: meta.deviceId,
@@ -969,7 +1055,7 @@
 
     const {
       apiKey, endpoint, app, debug, flushInterval,
-      environment, release, sampleRate
+      environment, release, sampleRate, sessionTimeoutMinutes
     } = _config
 
     if (!apiKey || !endpoint || !app) {
@@ -1000,13 +1086,18 @@
     }
 
     let normalized = _config.normalizedPath || computeNormalizedPath(_initialPathname)
+    const timeoutValue = parseFloat(sessionTimeoutMinutes)
+    _sessionTimeoutMs = Number.isFinite(timeoutValue) && timeoutValue > 0 ? timeoutValue * 60 * 1000 : 0
+    _sessionPersistenceEnabled = _sessionTimeoutMs > 0
+
+    const sessionInfo = hydrateSessionInfo(app)
 
     meta = {
       apiKey,
       app,
       environment,
       release,
-      sessionId: 'sess-' + Math.random().toString(36).substring(2, 15) + '-' + Date.now().toString(36),
+      sessionId: sessionInfo?.id || createSessionId(),
       deviceId,
       normalizedPath: normalized
     }
@@ -1036,19 +1127,21 @@
     flushTimer = setInterval(() => flush(), Number(flushInterval) || 10000)
 
     if (!_sessionDropped && (_config.autoTrackInitialView !== false)) {
-      sessionStartTime = Date.now()
       const pathname = w.location?.pathname || '/'
       normalized = meta.normalizedPath || computeNormalizedPath(pathname)
       const referrer = document.referrer || null
 
-      addBreadcrumb('navigation', 'Session started', 'info', { path: normalized })
-
-      bufferEvent({
-        type: 'session_start',
-        path: pathname,
-        normalizedPath: normalized,
-        referrer
-      })
+      if (!_sessionResumed) {
+        addBreadcrumb('navigation', 'Session started', 'info', { path: normalized })
+        bufferEvent({
+          type: 'session_start',
+          path: pathname,
+          normalizedPath: normalized,
+          referrer
+        })
+      } else {
+        addBreadcrumb('navigation', 'Session resumed', 'info', { path: normalized })
+      }
       bufferEvent({ type: 'page_view', path: pathname, normalizedPath: normalized, navType: 'navigate' })
       capturePerformance(pathname, normalized)
       lastPageViewPath = normalized

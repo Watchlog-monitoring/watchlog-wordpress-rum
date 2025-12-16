@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Watchlog RUM
  * Description: Real User Monitoring for WordPress sites powered by Watchlog. Mirrors the Vue/React SDK event format.
- * Version: 0.1.0
+ * Version: 0.2.0
  * Author: Watchlog
  * License: GPL2+
  * Text Domain: watchlog-rum
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WATCHLOG_RUM_VERSION', '0.1.0' );
+define( 'WATCHLOG_RUM_VERSION', '0.2.0' );
 define( 'WATCHLOG_RUM_PLUGIN_FILE', __FILE__ );
 define( 'WATCHLOG_RUM_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WATCHLOG_RUM_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

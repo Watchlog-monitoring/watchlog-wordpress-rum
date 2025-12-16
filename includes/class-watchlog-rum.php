@@ -68,6 +68,7 @@ class Watchlog_RUM_Plugin {
 			'network_sample_rate'    => 0.1,
 			'interaction_sample_rate' => 0.1,
 			'flush_interval'         => 10000,
+			'session_timeout_minutes'=> 30,
 			'enable_web_vitals'      => 1,
 			'capture_long_tasks'     => 1,
 			'capture_fetch'          => 1,
@@ -187,7 +188,16 @@ class Watchlog_RUM_Plugin {
 			'flush_interval'          => array(
 				'label'       => __( 'Flush Interval (ms)', 'watchlog-rum' ),
 				'type'        => 'number',
+				'min'         => '1000',
+				'step'        => '500',
 				'description' => __( 'How often buffered events are sent.', 'watchlog-rum' ),
+			),
+			'session_timeout_minutes' => array(
+				'label'       => __( 'Session Timeout (minutes)', 'watchlog-rum' ),
+				'type'        => 'number',
+				'min'         => '5',
+				'step'        => '5',
+				'description' => __( 'Minimum inactivity window before a new session is generated (default 30 minutes).', 'watchlog-rum' ),
 			),
 			'enable_web_vitals'       => array(
 				'label'       => __( 'Enable Web Vitals', 'watchlog-rum' ),
@@ -239,17 +249,23 @@ class Watchlog_RUM_Plugin {
 		$type    = isset( $field['type'] ) ? $field['type'] : 'text';
 		$desc    = isset( $field['description'] ) ? $field['description'] : '';
 		$required= isset( $field['required'] ) ? (bool) $field['required'] : false;
+		$step    = isset( $field['step'] ) ? esc_attr( $field['step'] ) : '';
+		$min     = isset( $field['min'] ) ? esc_attr( $field['min'] ) : '';
+		$max     = isset( $field['max'] ) ? esc_attr( $field['max'] ) : '';
 
 		switch ( $type ) {
 			case 'number':
+				$step_attr = $step ? sprintf( ' step="%s"', $step ) : ' step="0.1"';
+				$min_attr  = $min ? sprintf( ' min="%s"', $min ) : '';
+				$max_attr  = $max ? sprintf( ' max="%s"', $max ) : '';
 				printf(
-					'<input type="number" name="%1$s[%2$s]" id="%2$s" value="%3$s" step="%4$s" min="%5$s" max="%6$s" class="regular-text" %7$s />',
+					'<input type="number" name="%1$s[%2$s]" id="%2$s" value="%3$s"%4$s%5$s%6$s class="regular-text" %7$s />',
 					esc_attr( self::OPTION_NAME ),
 					esc_attr( $key ),
 					esc_attr( $value ),
-					isset( $field['step'] ) ? esc_attr( $field['step'] ) : '0.1',
-					isset( $field['min'] ) ? esc_attr( $field['min'] ) : '0',
-					isset( $field['max'] ) ? esc_attr( $field['max'] ) : '1',
+					$step_attr,
+					$min_attr,
+					$max_attr,
 					$required ? 'required' : ''
 				);
 				break;
@@ -299,6 +315,7 @@ class Watchlog_RUM_Plugin {
 		$clean['interaction_sample_rate'] = $this->clamp_fraction( $input['interaction_sample_rate'] ?? 0.1 );
 
 		$clean['flush_interval'] = max( 1000, absint( $input['flush_interval'] ?? 10000 ) );
+		$clean['session_timeout_minutes'] = $this->sanitize_session_timeout( $input['session_timeout_minutes'] ?? 30 );
 
 		$flags = array(
 			'enable_web_vitals',
@@ -333,6 +350,23 @@ class Watchlog_RUM_Plugin {
 			$number = 1;
 		}
 		return $number;
+	}
+
+	/**
+	 * Normalize session timeout (in minutes).
+	 *
+	 * @param mixed $value Raw timeout value.
+	 * @return int
+	 */
+	private function sanitize_session_timeout( $value ) {
+		$minutes = absint( $value );
+		if ( $minutes < 5 ) {
+			$minutes = 5;
+		}
+		if ( $minutes > 1440 ) {
+			$minutes = 1440;
+		}
+		return $minutes;
 	}
 
 	/**
@@ -416,6 +450,7 @@ class Watchlog_RUM_Plugin {
 			'networkSampleRate'      => $this->settings['network_sample_rate'],
 			'interactionSampleRate'  => $this->settings['interaction_sample_rate'],
 			'flushInterval'          => $this->settings['flush_interval'],
+			'sessionTimeoutMinutes'  => $this->settings['session_timeout_minutes'],
 			'enableWebVitals'        => (bool) $this->settings['enable_web_vitals'],
 			'captureLongTasks'       => (bool) $this->settings['capture_long_tasks'],
 			'captureFetch'           => (bool) $this->settings['capture_fetch'],

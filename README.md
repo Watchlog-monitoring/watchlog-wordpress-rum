@@ -9,6 +9,7 @@ WordPress implementation of the Watchlog Real User Monitoring (RUM) SDK.
 - 📡 Network instrumentation for `fetch` and `XMLHttpRequest` with sampling, body sizes, and timing breakdowns.
 - 🧠 Automatic error monitoring (`window.onerror`, `unhandledrejection`).
 - 🧹 Resource, long task, and user interaction (click / scroll / submit) capture.
+- ♻️ WordPress-aware session persistence that keeps the same `sessionId` across PHP page loads until a configurable inactivity timeout (default 30 minutes).
 - 🧭 Route normalization extracted from WordPress rewrite/permalink structures so dynamic permalinks such as `/blog/%postname%` become `/blog/:postname` the same way as SPA SDKs.
 
 ## Installation
@@ -21,6 +22,8 @@ WordPress implementation of the Watchlog Real User Monitoring (RUM) SDK.
    - `app`
    - `sampleRate` (capped at 0.5 like the SPA SDKs)
    - Optional tuning values (environment, release, network sampling, interaction sampling, Web Vitals toggle, etc.)
+   - `Flush Interval (ms)` controls how often buffered events are sent (min 1000ms).
+   - `Session Timeout (minutes)` defines how long a browser keeps the same session across WordPress page loads (default 30 minutes).
 4. Save changes. The plugin will enqueue the RUM script on every public page.
 
 ## Dynamic Route Handling
@@ -42,3 +45,8 @@ window.WatchlogRUMWP?.custom('checkout_step', 2, { step: 'payment' })
 - The frontend SDK lives in `assets/js/watchlog-rum.js` and mirrors the Vue package logic with only the framework hooks removed.
 - `assets/js/web-vitals.iife.js` is vendored from the official `web-vitals` package (MIT).
 - Server-side normalization logic is implemented inside `includes/class-watchlog-rum.php`.
+
+## Release Assets
+
+- Plugin icons for the WordPress directory live in `assets/icon-128x128.png` and `assets/icon-256x256.png`.
+- The GPL-2.0+ license text is bundled as `LICENSE`.
