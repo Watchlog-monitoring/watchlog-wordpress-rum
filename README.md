@@ -1,6 +1,6 @@
 # Watchlog WordPress RUM Plugin
 
-WordPress implementation of the Watchlog Real User Monitoring (RUM) SDK. This plugin mirrors the event format that the Vue and React SDKs emit so the existing `rum-server` backend can ingest telemetry without any changes.
+WordPress implementation of the Watchlog Real User Monitoring (RUM) SDK. 
 
 ## Features
 
