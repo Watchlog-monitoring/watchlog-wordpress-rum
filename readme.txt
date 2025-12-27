@@ -25,6 +25,9 @@ Watchlog RUM delivers Real User Monitoring for WordPress sites by mirroring the 
 3. Open **Settings → Watchlog RUM** and configure your API key, endpoint, app name, sampling, flush interval, and session timeout.
 4. Save changes. The frontend SDK will automatically load on public pages.
 
+== Third-Party Libraries ==
+* web-vitals (GoogleChrome/web-vitals) — Source: https://github.com/GoogleChrome/web-vitals — License: Apache-2.0 — Bundled file: assets/js/web-vitals.iife.js
+
 == Changelog ==
 = 0.2.0 =
 * Initial public release of the Watchlog RUM WordPress integration.
